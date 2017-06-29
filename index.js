@@ -4,11 +4,14 @@ var args = require('minimist')(process.argv.slice(2), {
   }
 })
 var express = require('express')
+var bodyParser = require('body-parser')
 var app = express()
 
+app.use(bodyParser.json())
+
 app.post('/', (req, res) => {
-  console.log(req)
-  res.send('yolo')
+  console.log(req.body)
+  res.send(JSON.stringify(req.body))
 })
 
 app.listen(args.port, () => {
