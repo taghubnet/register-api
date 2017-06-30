@@ -20,6 +20,7 @@
   "homepage": "https://github.com/taghubnet/register-api#readme",
   "dependencies": {
     "body-parser": "^1.17.2",
+    "debug-log": "^1.0.1",
     "express": "^4.15.3",
     "minimist": "^1.2.0"
   }
