@@ -19,9 +19,11 @@
   },
   "homepage": "https://github.com/taghubnet/register-api#readme",
   "dependencies": {
+    "async": "^2.5.0",
     "body-parser": "^1.17.2",
     "debug-log": "^1.0.1",
     "express": "^4.15.3",
-    "minimist": "^1.2.0"
+    "minimist": "^1.2.0",
+    "request": "^2.81.0"
   }
 }

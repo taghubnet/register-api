@@ -1,50 +1,85 @@
 var args = require('minimist')(process.argv.slice(2), {
   default: {
-    port: 3000,
-    docker_host: '10.244.27.6',
-    docker_host_exec: '127.0.0.1'
+    host: '127.0.0.1',
+    port: 3210,
+    readTokenInterval: 100000,
+    registerNodesInterval: 10000,
+    docker_host: '172.0.0.1:4243',
   }
 })
 var log = require('debug-log')('register-api')
+var async = require('async')
+var request = require('request')
 var express = require('express')
 var bodyParser = require('body-parser')
 var exec = require('child_process').exec
 
 var app = express()
 var nodes = []
-var joinToken = '' 
+var swarm = { JoinTokens: { Worker: '', Manager: ''} }
 
 app.use(bodyParser.json())
 
 app.post('/', (req, res) => {
-  nodes.push(JSON.stringify(req.body)) 
+  nodes.push(req.body) 
   res.send(JSON.stringify({
-    token: joinToken
+    token: swarm.JoinTokens[capitalizeFirstLetter(req.body.type)] 
   }))
 })
 
-app.listen(args.port, () => {
+app.listen(args.port, args.host, 511, () => {
   console.log('Listening on '+args.port)
 })
 
-// Register 
-setInterval(function() {
-  // Get all nodes
-  exec(`docker -H tcp://${args.docker_host}:4243 run --rm --net=host -i docker:latest -H tcp://${args.docker_host_exec}:4243 node ls -q`, (err, stderr) => {
-    if (err) return log(err)
-    var ids = stderr.split('\n')
-    console.log(ids)
-    //exec(`docker run --rm --net=host -it docker:latest -H tcp://${args.docker_host_exec}:4243 node update label-add eple=kake ${id}`)
-  })
-//  nodes.forEach(node => {
-//    
-//  })
-}, 3000)
+function capitalizeFirstLetter(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+}
 
-// Read token
-setInterval(function() {
-  exec(`docker -H tcp://${args.docker_host}:4243 run --rm --net=host -i docker:latest -H tcp://${args.docker_host_exec}:4243 swarm join-token worker -q`, (err, stderr, stdout) => {
+function registerNodesInSwarm() {
+  // Get all registered nodes
+  request(`http://${args.docker_host}/nodes`, (err, res, payload) => {
     if (err) return log(err)
-    joinToken = stderr.trim()
+    if (res.statusCode != 200) return log(err)
+    let regNodes = JSON.parse(payload)
+    let updates = nodes.map(newNode => {
+      let regNodeList = regNodes.filter(rn => rn.Description.Hostname == newNode.hostname)
+      if (regNodeList.length === 0) return
+      let regNode = regNodeList[0]
+      return {
+        id: regNode.ID,
+        version: regNode.Version.Index,
+        spec: regNode.Spec,
+        ...newNode
+      }
+    }) 
+    log(`${updates.length} nodes to update`)
+    async.series(updates.map(update => {
+      return (callback) => {
+        request({
+          url: `http://${args.docker_host}/nodes/${update.id}/update?version=${update.version}`,
+          method: 'POST',
+          json: Object.assign({}, update.spec, { Labels: update.labels })
+        }, (err, res, payload) => {
+          callback(err, { err: err, res: res, payload: payload, update: update })
+        })
+      }
+    }), (err, results) => {
+      results.forEach(r => {
+        if (r.err) return log(`Unable to update ${r.update.id}`, r.err)
+        nodes = nodes.filter(n => n.hostname != r.update.hostname)
+      })
+    }) 
   })
-}, 3000)
+}
+
+function readToken() {
+  request(`http://${args.docker_host}/swarm`, (err, res, payload) => {
+    if (err) return log(err)
+    if (res.statusCode != 200) return log(err)
+    swarm = JSON.parse(payload)
+  })
+}
+
+readToken()
+setInterval(readToken, args.readTokenInterval)
+setInterval(registerNodesInSwarm, args.registerNodesInterval)
