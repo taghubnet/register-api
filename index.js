@@ -4,7 +4,7 @@ var args = require('minimist')(process.argv.slice(2), {
     port: 3210,
     readTokenInterval: 100000,
     registerNodesInterval: 10000,
-    docker_host: '172.0.0.1:4243',
+    docker_swarm_manager: '172.0.0.1:4243',
   }
 })
 var log = require('debug-log')('register-api')
@@ -37,7 +37,7 @@ function capitalizeFirstLetter(string) {
 
 function registerNodesInSwarm() {
   // Get all registered nodes
-  request(`http://${args.docker_host}/nodes`, (err, res, payload) => {
+  request(`http://${args.docker_swarm_manager}/nodes`, (err, res, payload) => {
     if (err) return log(err)
     if (res.statusCode != 200) return log(err)
     let regNodes = JSON.parse(payload)
@@ -56,7 +56,7 @@ function registerNodesInSwarm() {
     async.series(updates.map(update => {
       return (callback) => {
         request({
-          url: `http://${args.docker_host}/nodes/${update.id}/update?version=${update.version}`,
+          url: `http://${args.docker_swarm_manager}/nodes/${update.id}/update?version=${update.version}`,
           method: 'POST',
           json: Object.assign({}, update.spec, { Labels: update.labels })
         }, (err, res, payload) => {
@@ -73,7 +73,7 @@ function registerNodesInSwarm() {
 }
 
 function readToken() {
-  request(`http://${args.docker_host}/swarm`, (err, res, payload) => {
+  request(`http://${args.docker_swarm_manager}/swarm`, (err, res, payload) => {
     if (err) return log(err)
     if (res.statusCode != 200) return log(err)
     swarm = JSON.parse(payload)
