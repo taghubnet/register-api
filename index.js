@@ -4,7 +4,7 @@ var args = require('minimist')(process.argv.slice(2), {
     port: 3210,
     readTokenInterval: 100000,
     registerNodesInterval: 10000,
-    docker_swarm_manager: '172.0.0.1:4243',
+    docker_swarm_manager: '127.0.0.1:4243',
   }
 })
 var log = require('debug-log')('register-api')
@@ -43,7 +43,7 @@ function registerNodesInSwarm() {
     let regNodes = JSON.parse(payload)
     let updates = nodes.map(newNode => {
       let regNodeList = regNodes.filter(rn => rn.Description.Hostname == newNode.hostname)
-      if (regNodeList.length === 0) return
+      if (regNodeList.length === 0) return null
       let regNode = regNodeList[0]
       return {
         id: regNode.ID,
@@ -51,8 +51,10 @@ function registerNodesInSwarm() {
         spec: regNode.Spec,
         ...newNode
       }
-    }) 
-    log(`${updates.length} nodes to update`)
+    }).filter(rn => rn != null)
+    log(`${nodes.length} nodes metadata`)
+    log(`${updates.length} nodes ready to update`)
+    log(updates)
     async.series(updates.map(update => {
       return (callback) => {
         request({
