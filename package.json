@@ -5,8 +5,7 @@
   "description": "Service for [docker swarm](https://docs.docker.com/engine/swarm/) worker nodes to register metadata and obtain a swarm join key.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js"
+    "build": "pkg index.js --target node8-alpine-x64"
   },
   "repository": {
     "type": "git",

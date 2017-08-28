@@ -48,8 +48,7 @@ function registerNodesInSwarm() {
       return {
         id: regNode.ID,
         version: regNode.Version.Index,
-        spec: regNode.Spec,
-        ...newNode
+        spec: Object.assign({}, regNode.Spec, newNode)
       }
     }).filter(rn => rn != null)
     log(`${nodes.length} nodes metadata`)
