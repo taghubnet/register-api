@@ -45,11 +45,11 @@ function registerNodesInSwarm() {
       let regNodeList = regNodes.filter(rn => rn.Description.Hostname == newNode.hostname)
       if (regNodeList.length === 0) return null
       let regNode = regNodeList[0]
-      return {
+      return Object.assign({
         id: regNode.ID,
         version: regNode.Version.Index,
-        spec: Object.assign({}, regNode.Spec, newNode)
-      }
+        spec: regNode.Spec
+      }, newNode)
     }).filter(rn => rn != null)
     log(`${nodes.length} nodes metadata`)
     log(`${updates.length} nodes ready to update`)
