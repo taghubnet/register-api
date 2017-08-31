@@ -2,7 +2,7 @@ var args = require('minimist')(process.argv.slice(2), {
   default: {
     host: '127.0.0.1',
     port: 3210,
-    readTokenInterval: 100000,
+    readTokenInterval: 10000,
     registerNodesInterval: 10000,
     docker_swarm_manager: '127.0.0.1:4243',
   }
