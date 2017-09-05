@@ -2,9 +2,12 @@ var args = require('minimist')(process.argv.slice(2), {
   default: {
     host: '127.0.0.1',
     port: 3210,
+    crud_host: '127.0.0.1',
+    crud_port: 3333,
     readTokenInterval: 10000,
     registerNodesInterval: 10000,
     docker_swarm_manager: '127.0.0.1:4243',
+    read_token_immediately: false
   }
 })
 var log = require('debug-log')('register-api')
@@ -14,21 +17,35 @@ var express = require('express')
 var bodyParser = require('body-parser')
 var exec = require('child_process').exec
 
-var app = express()
-var nodes = []
-var swarm = { JoinTokens: { Worker: '', Manager: ''} }
+var state = {
+  nodes: [],
+  swarm: { JoinTokens: { Worker: '', Manager: ''} }
+}
 
-app.use(bodyParser.json())
-
-app.post('/', (req, res) => {
-  nodes.push(req.body) 
-  res.send(JSON.stringify({
-    token: swarm.JoinTokens[capitalizeFirstLetter(req.body.type)] 
-  }))
+const jsonServer = require('json-server')
+const server = jsonServer.create()
+const router = jsonServer.router(state)
+const middlewares = jsonServer.defaults()
+server.use(middlewares)
+server.use(jsonServer.bodyParser)
+server.use(router)
+server.listen(args.crud_port, args.crud_host, 511, () => {
+  console.log('State CRUD API listening on '+args.crud_port)
 })
 
+var app = express()
+app.use(bodyParser.json())
+app.post('/', (req, res) => {
+  state.nodes.push(Object.assign({
+    created: Date.now(),
+    id: state.nodes.length+1
+  }, req.body)) 
+  res.send(JSON.stringify({
+    token: state.swarm.JoinTokens[capitalizeFirstLetter(req.body.type)] 
+  }))
+})
 app.listen(args.port, args.host, 511, () => {
-  console.log('Listening on '+args.port)
+  console.log('Register API listening on '+args.port)
 })
 
 function capitalizeFirstLetter(string) {
@@ -41,7 +58,7 @@ function registerNodesInSwarm() {
     if (err) return log(err)
     if (res.statusCode != 200) return log(err)
     let regNodes = JSON.parse(payload)
-    let updates = nodes.map(newNode => {
+    let updates = state.nodes.map(newNode => {
       let regNodeList = regNodes.filter(rn => rn.Description.Hostname == newNode.hostname)
       if (regNodeList.length === 0) return null
       let regNode = regNodeList[0]
@@ -51,7 +68,7 @@ function registerNodesInSwarm() {
         spec: regNode.Spec
       }, newNode)
     }).filter(rn => rn != null)
-    log(`${nodes.length} nodes metadata`)
+    log(`${state.nodes.length} nodes metadata`)
     log(`${updates.length} nodes ready to update`)
     log(updates)
     async.series(updates.map(update => {
@@ -67,7 +84,7 @@ function registerNodesInSwarm() {
     }), (err, results) => {
       results.forEach(r => {
         if (r.err) return log(`Unable to update ${r.update.id}`, r.err)
-        nodes = nodes.filter(n => n.hostname != r.update.hostname)
+        nodes = state.nodes.filter(n => n.hostname != r.update.hostname)
       })
     }) 
   })
@@ -77,10 +94,10 @@ function readToken() {
   request(`http://${args.docker_swarm_manager}/swarm`, (err, res, payload) => {
     if (err) return log(err)
     if (res.statusCode != 200) return log(err)
-    swarm = JSON.parse(payload)
+    state.swarm = JSON.parse(payload)
   })
 }
 
-readToken()
+if (args.read_token_immediately) readToken()
 setInterval(readToken, args.readTokenInterval)
 setInterval(registerNodesInSwarm, args.registerNodesInterval)
