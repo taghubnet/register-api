@@ -84,7 +84,7 @@ function registerNodesInSwarm() {
     }), (err, results) => {
       results.forEach(r => {
         if (r.err) return log(`Unable to update ${r.update.nid}`, r.err)
-        nodes = state.nodes.filter(n => n.hostname != r.update.hostname)
+        state.nodes = state.nodes.filter(n => n.hostname != r.update.hostname)
       })
     }) 
   })
