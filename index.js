@@ -63,7 +63,7 @@ function registerNodesInSwarm() {
       if (regNodeList.length === 0) return null
       let regNode = regNodeList[0]
       return Object.assign({
-        id: regNode.ID,
+        nid: regNode.ID,
         version: regNode.Version.Index,
         spec: regNode.Spec
       }, newNode)
@@ -74,7 +74,7 @@ function registerNodesInSwarm() {
     async.series(updates.map(update => {
       return (callback) => {
         request({
-          url: `http://${args.docker_swarm_manager}/nodes/${update.id}/update?version=${update.version}`,
+          url: `http://${args.docker_swarm_manager}/nodes/${update.nid}/update?version=${update.version}`,
           method: 'POST',
           json: Object.assign({}, update.spec, { Labels: update.labels })
         }, (err, res, payload) => {
@@ -83,7 +83,7 @@ function registerNodesInSwarm() {
       }
     }), (err, results) => {
       results.forEach(r => {
-        if (r.err) return log(`Unable to update ${r.update.id}`, r.err)
+        if (r.err) return log(`Unable to update ${r.update.nid}`, r.err)
         nodes = state.nodes.filter(n => n.hostname != r.update.hostname)
       })
     }) 
