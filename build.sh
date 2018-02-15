@@ -1,4 +1,4 @@
 #!/bin/sh
 VERSION=$(cat package.json | jq -r .version)
 npm run build
-docker build -t registry.taghub:5000/register-api:$VERSION .
+docker build -t taghub/register-api:$VERSION .
