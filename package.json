@@ -1,11 +1,11 @@
 {
   "name": "register-api",
   "private": true,
-  "version": "2.2.1",
+  "version": "2.4.0",
   "description": "Service for [docker swarm](https://docs.docker.com/engine/swarm/) worker nodes to register metadata and obtain a swarm join key.",
   "main": "index.js",
   "scripts": {
-    "build": "pkg index.js --target node8-alpine-x64"
+    "build": "pkg index.js --target node16-alpine-x64"
   },
   "repository": {
     "type": "git",

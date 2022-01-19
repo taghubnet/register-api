@@ -16,11 +16,20 @@ var request = require('request')
 var express = require('express')
 var bodyParser = require('body-parser')
 var exec = require('child_process').exec
+const fs = require('fs')
+const path = require('path')
 
 var state = {
   nodes: [],
-  swarm: { JoinTokens: { Worker: '', Manager: ''} }
+  swarm: { JoinTokens: { Worker: '', Manager: ''} },
+  cert: {
+    tlsCert: '',
+    tlsKey: '',
+    tlsCA: ''
+  },
 }
+
+
 
 const jsonServer = require('json-server')
 const server = jsonServer.create()
@@ -32,6 +41,24 @@ server.use(router)
 server.listen(args.crud_port, args.crud_host, 511, () => {
   console.log('State CRUD API listening on '+args.crud_port)
 })
+
+const secretpath = "/run/secrets"
+
+if (fs.existsSync(secretpath)) {
+  const secrets = (fs.readdirSync(secretpath))
+  try {
+    state.cert.tlsCert = path.join(secretpath, secrets.find(e => e.match("cert.pem")))
+    state.cert.tlsKey = path.join(secretpath, secrets.find(e => e.match("key.pem")))
+    state.cert.tlsCA = path.join(secretpath, secrets.find(e => e.match("ca.pem")))
+  } catch(err) {
+    console.log(err)
+  }
+  
+  console.log("Running in TLS mode")
+}
+else {
+  console.log("Running without TLS")
+}
 
 var app = express()
 app.use(bodyParser.json())
@@ -54,7 +81,17 @@ function capitalizeFirstLetter(string) {
 
 function registerNodesInSwarm() {
   // Get all registered nodes
-  request(`http://${args.docker_swarm_manager}/nodes`, (err, res, payload) => {
+  let options = state.cert.tlsCert ? {
+    url: `https://${args.docker_swarm_manager}/swarm/nodes`,
+    method: 'GET',
+    cert: state.cert.tlsCert ? fs.readFileSync(state.cert.tlsCert) : '',
+    key: state.cert.tlsKey ? fs.readFileSync(state.cert.tlsKey) : '',
+    ca: state.cert.tlsCA ? fs.readFileSync(state.cert.tlsCA) : '',
+  }: {
+    url: `http://${args.docker_swarm_manager}/swarm/nodes`,
+    method: 'GET',
+  }
+  request(options,(err, res, payload) => {
     if (err) return log(err)
     if (res.statusCode != 200) return log(err)
     let regNodes = JSON.parse(payload)
@@ -73,11 +110,19 @@ function registerNodesInSwarm() {
     log(updates)
     async.series(updates.map(update => {
       return (callback) => {
-        request({
-          url: `http://${args.docker_swarm_manager}/nodes/${update.nid}/update?version=${update.version}`,
+        let opt = state.cert.tlsCert ? {
+          url: `https://${args.docker_swarm_manager}/swarm/nodes/${update.nid}/update?version=${update.version}`,
           method: 'POST',
-          json: Object.assign({}, update.spec, { Labels: update.labels })
-        }, (err, res, payload) => {
+          cert: state.cert.tlsCert ? fs.readFileSync(state.cert.tlsCert) : '',
+          key: state.cert.tlsKey ? fs.readFileSync(state.cert.tlsKey) : '',
+          ca: state.cert.tlsCA ? fs.readFileSync(state.cert.tlsCA) : '',
+          json: Object.assign({}, update.spec, { Labels: update.labels }),
+        }: {
+          url: `http://${args.docker_swarm_manager}/swarm/nodes/${update.nid}/update?version=${update.version}`,
+          method: 'POST',
+          json: Object.assign({}, update.spec, { Labels: update.labels }),
+        }
+        request(opt, (err, res, payload) => {
           callback(err, { err: err, res: res, payload: payload, update: update })
         })
       }
@@ -91,9 +136,19 @@ function registerNodesInSwarm() {
 }
 
 function readToken() {
-  request(`http://${args.docker_swarm_manager}/swarm`, (err, res, payload) => {
-    if (err) return log(err)
-    if (res.statusCode != 200) return log(err)
+  let req = state.cert.tlsCert ? {
+    url: `https://${args.docker_swarm_manager}/swarm`,
+    method: 'GET',
+    cert: state.cert.tlsCert ? fs.readFileSync(state.cert.tlsCert) : '',
+    key: state.cert.tlsKey ? fs.readFileSync(state.cert.tlsKey) : '',
+    ca: state.cert.tlsCA ? fs.readFileSync(state.cert.tlsCA) : '',
+  }: {
+    url: `http://${args.docker_swarm_manager}/swarm`,
+    method: 'GET',
+  }
+  request(req, (err, res, payload) => {
+    if (err) return console.log(err)
+    if (res.statusCode != 200) return console.log("Reading token failed with the message:",  res.body)
     state.swarm = JSON.parse(payload)
   })
 }

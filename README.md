@@ -7,3 +7,9 @@ Service for [docker swarm](https://docs.docker.com/engine/swarm/) worker nodes t
 Agents will query this API and register information about themselves. In return they get a `docker swarm join key` they can use join the swarm as a worker node.
 
 Once the new node is registered in the swarn, this service will decorate it with labels passed in the payload.
+
+The service will check /run/secrets for x509 certificates to authenticate the DockerAPI. 
+Make sure to name the certificats in the following pattern:
+*cert.pem   - Client certificate
+*key.pem    - Client key
+*ca.pem     - CA
