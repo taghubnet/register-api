@@ -1,83 +1,25 @@
-var args = require('minimist')(process.argv.slice(2), {
-  default: {
-    host: '127.0.0.1',
-    port: 3210,
-    crud_host: '127.0.0.1',
-    crud_port: 3333,
-    readTokenInterval: 10000,
-    registerNodesInterval: 10000,
-    docker_swarm_manager: '127.0.0.1:4243',
-    read_token_immediately: false
-  }
+import fs from 'fs' 
+import path from 'path'
+import http from 'http'
+import debug_log from 'debug-log'
+import { router, method } from 'tiny-http-router'
+import {
+  HTTP_HOST,
+  HTTP_PORT,
+} from './config.js'
+import { register_node_in_swarm } from './api.js'
+
+const log = debug_log('register-api')
+
+// TODO: SENTRY
+
+const server = http.createServer(router({
+  '/': method('POST', register_node_in_swarm)
+}, (req, res, { send }) => {
+  send(200, 'default')
+})).listen(HTTP_PORT, HTTP_HOST, () => {
+  console.log(`http server listening on ${HTTP_HOST}:${HTTP_PORT}`)
 })
-var log = require('debug-log')('register-api')
-var async = require('async')
-var request = require('request')
-var express = require('express')
-var bodyParser = require('body-parser')
-var exec = require('child_process').exec
-const fs = require('fs')
-const path = require('path')
-
-var state = {
-  nodes: [],
-  swarm: { JoinTokens: { Worker: '', Manager: ''} },
-  cert: {
-    tlsCert: '',
-    tlsKey: '',
-    tlsCA: ''
-  },
-}
-
-
-
-const jsonServer = require('json-server')
-const server = jsonServer.create()
-const router = jsonServer.router(state)
-const middlewares = jsonServer.defaults()
-server.use(middlewares)
-server.use(jsonServer.bodyParser)
-server.use(router)
-server.listen(args.crud_port, args.crud_host, 511, () => {
-  console.log('State CRUD API listening on '+args.crud_port)
-})
-
-const secretpath = "/run/secrets"
-
-if (fs.existsSync(secretpath)) {
-  const secrets = (fs.readdirSync(secretpath))
-  try {
-    state.cert.tlsCert = path.join(secretpath, secrets.find(e => e.match("cert.pem")))
-    state.cert.tlsKey = path.join(secretpath, secrets.find(e => e.match("key.pem")))
-    state.cert.tlsCA = path.join(secretpath, secrets.find(e => e.match("ca.pem")))
-  } catch(err) {
-    console.log(err)
-  }
-  
-  console.log("Running in TLS mode")
-}
-else {
-  console.log("Running without TLS")
-}
-
-var app = express()
-app.use(bodyParser.json())
-app.post('/', (req, res) => {
-  state.nodes.push(Object.assign({
-    created: Date.now(),
-    id: state.nodes.length+1
-  }, req.body)) 
-  res.send(JSON.stringify({
-    token: state.swarm.JoinTokens[capitalizeFirstLetter(req.body.type)] 
-  }))
-})
-app.listen(args.port, args.host, 511, () => {
-  console.log('Register API listening on '+args.port)
-})
-
-function capitalizeFirstLetter(string) {
-  return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
-}
 
 function registerNodesInSwarm() {
   // Get all registered nodes
@@ -153,6 +95,6 @@ function readToken() {
   })
 }
 
-if (args.read_token_immediately) readToken()
-setInterval(readToken, args.readTokenInterval)
-setInterval(registerNodesInSwarm, args.registerNodesInterval)
+//if (args.read_token_immediately) readToken()
+//setInterval(readToken, args.readTokenInterval)
+//setInterval(registerNodesInSwarm, args.registerNodesInterval)
