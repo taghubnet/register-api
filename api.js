@@ -9,7 +9,7 @@ import {
   TLS_KEY,
   TLS_CERT,
   DOCKER_SWARM_MANAGER,
-  WAIT_FOR_NODE_INTERVAL
+  WAIT_FOR_NODE_NAPTIME
 } from './config.js'
 
 const swarm_base_url = () => TLS_CA === '' ? `http://${DOCKER_SWARM_MANAGER}` : `https://${DOCKER_SWARM_MANAGER}`
@@ -38,7 +38,7 @@ async function wait_for_node_to_join_swarm(hostname, retries) {
   console.log(`Found match for ${hostname}:`, node ? 'yes' : 'no')
   if (node) return node
   if (!retries) throw new Error(`Unable to find node ${hostname} in swarm`) 
-  await sleep(WAIT_FOR_NODE_INTERVAL)
+  await sleep(WAIT_FOR_NODE_NAPTIME)
   await wait_for_node_to_join_swarm(hostname, retries-1)
 }
 
