@@ -21,7 +21,6 @@
   "homepage": "https://github.com/taghubnet/register-api#readme",
   "dependencies": {
     "@sentry/node": "^5.5.0",
-    "debug-log": "^2.0.0",
     "node-fetch": "^2.6.7",
     "tiny-env-config": "^1.0.0",
     "tiny-http-router": "^2.3.0"
