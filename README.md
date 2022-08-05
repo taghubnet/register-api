@@ -1,4 +1,4 @@
-# Register Api
+# register-api
 
 Service for [docker swarm](https://docs.docker.com/engine/swarm/) worker nodes to register metadata and obtain a swarm join key.
 
@@ -8,8 +8,6 @@ Agents will query this API and register information about themselves. In return 
 
 Once the new node is registered in the swarn, this service will decorate it with labels passed in the payload.
 
-The service will check /run/secrets for x509 certificates to authenticate the DockerAPI. 
-Make sure to name the certificats in the following pattern:
-*cert.pem   - Client certificate
-*key.pem    - Client key
-*ca.pem     - CA
+Check `config.js` for different configuration parameters.
+
+enjoy.
