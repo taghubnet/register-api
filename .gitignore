@@ -1,2 +1,4 @@
-node_modules
 *.swp
+dev.env
+demo.env
+node_modules

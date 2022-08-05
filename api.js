@@ -1,3 +1,4 @@
+import https from 'https'
 import fetch from 'node-fetch'
 import { 
   sleep, 
@@ -5,13 +6,22 @@ import {
 } from './utils.js'
 import {
   TLS_CA,
-  DOCKER_SWARM_MANAGER
+  TLS_KEY,
+  TLS_CERT,
+  DOCKER_SWARM_MANAGER,
+  WAIT_FOR_NODE_INTERVAL
 } from './config.js'
 
 const swarm_base_url = () => TLS_CA === '' ? `http://${DOCKER_SWARM_MANAGER}` : `https://${DOCKER_SWARM_MANAGER}`
 
 function https_agent_maybe() {
-  console.log(TLS_CA)
+  if (TLS_CA != '') return {
+    agent: new https.Agent({
+      ca: TLS_CA, 
+      key: TLS_KEY,
+      cert: TLS_CERT
+    })
+  }
   return {}
 }
 
@@ -21,12 +31,14 @@ async function fetch_join_token(type) {
 }
 
 async function wait_for_node_to_join_swarm(hostname, retries) {
+  console.log('Checking nodes for', hostname)
   const nodes  = await fetch(`${swarm_base_url()}/nodes`, https_agent_maybe()).then(r => r.json())
-  nodes.forEach(n => console.log(n.Description.Hostname, hostname))
+  console.log(`Found ${nodes.length} nodes`)
   const node = nodes.find(n => n.Description.Hostname == hostname)
+  console.log(`Found match for ${hostname}:`, node ? 'yes' : 'no')
   if (node) return node
   if (!retries) throw new Error(`Unable to find node ${hostname} in swarm`) 
-  await sleep(1)
+  await sleep(WAIT_FOR_NODE_INTERVAL)
   await wait_for_node_to_join_swarm(hostname, retries-1)
 }
 
@@ -40,10 +52,11 @@ async function update_node_in_swarm(node, spec) {
 
 export async function register_node_in_swarm(req, res, { send, json }) {
   const payload = await json()
+  console.log(`Attempt to register`, payload)
 
   // Fetch and return token 
   const token = await fetch_join_token(payload?.type)
-  send(200, { token: token }) 
+  send(200, { token: token })
 
   // Wait for node to join swarm (5 retries 10 secs wait)
   const node = await wait_for_node_to_join_swarm(payload?.hostname, 5)
