@@ -1,4 +1,4 @@
-# Register Api
+# register-api
 
 Service for [docker swarm](https://docs.docker.com/engine/swarm/) worker nodes to register metadata and obtain a swarm join key.
 
