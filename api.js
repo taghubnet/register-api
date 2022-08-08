@@ -63,5 +63,5 @@ export async function register_node_in_swarm(req, res, { send, json }) {
   const node = await wait_for_node_to_join_swarm(payload?.hostname, 5)
 
   // Update swarm with node metadata
-  await update_node_in_swarm(node, Object.assign({}, node?.Spec || {}, payload.labels))
+  await update_node_in_swarm(node, Object.assign({}, node?.Spec || {}, { Labels: payload.labels }))
 }
