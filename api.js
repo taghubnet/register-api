@@ -39,15 +39,16 @@ async function wait_for_node_to_join_swarm(hostname, retries) {
   if (node) return node
   if (!retries) throw new Error(`Unable to find node ${hostname} in swarm`) 
   await sleep(WAIT_FOR_NODE_NAPTIME)
-  await wait_for_node_to_join_swarm(hostname, retries-1)
+  return await wait_for_node_to_join_swarm(hostname, retries-1)
 }
 
 async function update_node_in_swarm(node, spec) {
-  await fetch(`${swarm_base_url()}/nodes/${node.ID}/update?version=${node.Version.Index}`, {
+  const res = await fetch(`${swarm_base_url()}/nodes/${node.ID}/update?version=${node.Version.Index}`, {
     method: 'POST',
     body: JSON.stringify(spec),
     ...https_agent_maybe()
   })
+  console.log(`Node updated:`, res.ok, spec)
 }
 
 export async function register_node_in_swarm(req, res, { send, json }) {
@@ -62,5 +63,5 @@ export async function register_node_in_swarm(req, res, { send, json }) {
   const node = await wait_for_node_to_join_swarm(payload?.hostname, 5)
 
   // Update swarm with node metadata
-  await update_node_in_swarm(node, Object.assign({}, node.Spec, payload.labels))
+  await update_node_in_swarm(node, Object.assign({}, node?.Spec || {}, payload.labels))
 }
