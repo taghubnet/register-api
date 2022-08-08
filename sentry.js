@@ -12,7 +12,7 @@ export function sentry_catch(fn) {
     } catch(e) {
       console.error(e)
       Sentry.captureException(e)
-      res.writeHead(500, { 'Content-Type': 'text/plan' })
+      res.writeHead(500, { 'Content-Type': 'text/plain' })
       return res.end(e.message)
     }
   }
